@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Absen Otomatis GPS</title>
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.65);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-primary: #3b82f6; /* Blue */
+            --accent-success: #10b981; /* Emerald Green */
+            --accent-warning: #f59e0b; /* Amber */
+            --accent-danger: #ef4444; /* Red */
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --glow-green: rgba(16, 185, 129, 0.25);
+            --glow-blue: rgba(59, 130, 246, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 16px 40px 16px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Header Clock styles */
+        header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .logo-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .clock-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 16px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .time-display {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-main);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .date-display {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+            font-weight: 400;
+        }
+
+        /* Radar Tracking Panel */
+        .radar-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .radar-outer {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .radar-middle {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .radar-inner {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .radar-sweep {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: conic-gradient(from 0deg, transparent 40%, rgba(59, 130, 246, 0.15) 80%, rgba(59, 130, 246, 0.45) 100%);
+            border-radius: 50%;
+            animation: radar-sweep-anim 4s linear infinite;
+            pointer-events: none;
+            mix-blend-mode: screen;
+        }
+
+        .radar-sweep.in-range {
+            background: conic-gradient(from 0deg, transparent 40%, rgba(16, 185, 129, 0.15) 80%, rgba(16, 185, 129, 0.45) 100%);
+        }
+
+        .radar-center-dot {
+            width: 14px;
+            height: 14px;
+            background-color: var(--accent-primary);
+            border-radius: 50%;
+            z-index: 2;
+            box-shadow: 0 0 15px var(--accent-primary);
+            transition: all 0.3s ease;
+        }
+
+        .radar-center-dot.in-range {
+            background-color: var(--accent-success);
+            box-shadow: 0 0 20px var(--accent-success);
+            animation: pulse-dot 1.5s infinite alternate;
+        }
+
+        .distance-hud {
+            text-align: center;
+            z-index: 2;
+        }
+
+        .distance-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1;
+            margin-bottom: 4px;
+            transition: color 0.3s ease;
+        }
+
+        .distance-value.in-range {
+            color: var(--accent-success);
+            text-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .distance-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.out {
+            color: var(--accent-warning);
+            border-color: rgba(245, 158, 11, 0.3);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .status-badge.in {
+            color: var(--accent-success);
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.05);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+        }
+
+        /* GPS Status Bar */
+        .gps-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+            gap: 12px;
+            margin-top: 5px;
+        }
+
+        .info-tile {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .tile-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .tile-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* Controls card */
+        .control-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), #2563eb);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-main);
+        }
+
+        .btn-outline:active {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .toggle-switch-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .toggle-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .toggle-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .toggle-desc {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* CSS Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.15);
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-success);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        /* Stats Cards Dashboard */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 12px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .stat-val {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        /* Logs history card */
+        .logs-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            flex-grow: 1;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 10px;
+        }
+
+        .logs-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .logs-count-badge {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .logs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        /* Custom scrollbar for logs list */
+        .logs-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .logs-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .logs-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+        }
+
+        .log-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slide-in 0.3s ease;
+        }
+
+        .log-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .log-time {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .log-date {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .log-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .log-status {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .log-status.tepat {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--accent-success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .log-status.terlambat {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--accent-danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .log-dist {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        .empty-logs {
+            text-align: center;
+            padding: 30px 0;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .empty-icon {
+            font-size: 2rem;
+            opacity: 0.5;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            width: calc(100% - 32px);
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: rgba(17, 24, 39, 0.9);
+            backdrop-filter: blur(8px);
+            border-left: 4px solid var(--accent-primary);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            color: var(--text-main);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transform: translateY(20px);
+            opacity: 0;
+            animation: toast-in 0.3s forwards;
+            pointer-events: auto;
+        }
+
+        .toast.success {
+            border-left-color: var(--accent-success);
+        }
+
+        .toast.warning {
+            border-left-color: var(--accent-warning);
+        }
+
+        .toast.danger {
+            border-left-color: var(--accent-danger);
+        }
+
+        /* Keyframes Animations */
+        @keyframes radar-sweep-anim {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes pulse-dot {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 10px var(--accent-success);
+            }
+            100% {
+                transform: scale(1.2);
+                box-shadow: 0 0 25px var(--accent-success);
+            }
+        }
+
+        @keyframes slide-in {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes toast-in {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Target coordinates card */
+        .target-coords-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 10px 14px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .target-title {
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .target-coord-value {
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        
+        .footer-link {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <div class="logo-title">ATTENDANCE AUTOLOG</div>
+            <div class="subtitle">Absensi Otomatis Berbasis Radius GPS</div>
+        </header>
+
+        <!-- Secure Context Check Warning -->
+        <div id="secure-context-warning" style="display: none; background: rgba(245, 158, 11, 0.12); border: 1px dashed rgba(245, 158, 11, 0.4); border-radius: 16px; padding: 14px; font-size: 0.8rem; color: #fbbf24; line-height: 1.5; margin-bottom: 5px;">
+            ⚠️ <strong>Koneksi Tidak Aman (Non-HTTPS):</strong> Browser Android memblokir pelacakan GPS otomatis jika aplikasi dibuka langsung sebagai file lokal (<code>file:///</code>) atau HTTP biasa.
+            <br><br>
+            <strong>Solusi agar GPS Aktif:</strong>
+            <ul style="margin-left: 16px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+                <li>Gunakan <strong>Mode Simulasi Masuk Area</strong> di bawah untuk menguji logika kehadiran otomatis secara langsung.</li>
+                <li>Atau host file <code>index.html</code> ini di <strong>GitHub Pages</strong> secara gratis untuk mendapatkan URL HTTPS.</li>
+            </ul>
+        </div>
+
+        <!-- Live Clock -->
+        <div class="clock-card">
+            <div class="time-display" id="live-time">00:00:00</div>
+            <div class="date-display" id="live-date">Memuat Tanggal...</div>
+        </div>
+
+        <!-- Target Point Card -->
+        <div class="target-coords-card">
+            <div class="target-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--accent-primary)" style="vertical-align: middle;">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                Titik Koordinat Absen (Batas 10m)
+            </div>
+            <div>
+                Target: <span class="target-coord-value">-6.19794111, 106.75635311</span>
+            </div>
+            <div>
+                Batas Jam Masuk: <span style="font-weight:600; color: var(--text-main);">08:30 WIB</span>
+            </div>
+        </div>
+
+        <!-- Radar View Card -->
+        <div class="radar-card">
+            <div class="radar-outer">
+                <div class="radar-sweep" id="radar-sweep-element"></div>
+                <div class="radar-middle">
+                    <div class="radar-inner">
+                        <div class="radar-center-dot" id="radar-dot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="distance-hud">
+                <div class="distance-value" id="distance-display">--- m</div>
+                <div class="distance-label" id="distance-label">Mencari GPS</div>
+            </div>
+
+            <div class="status-badge out" id="status-badge">
+                MENCARI LOKASI
+            </div>
+
+            <div class="gps-info-grid">
+                <div class="info-tile">
+                    <span class="tile-label">Akurasi GPS</span>
+                    <span class="tile-value" id="gps-accuracy">---</span>
+                </div>
+                <div class="info-tile">
+                    <span class="tile-label">Lokasi Anda</span>
+                    <span class="tile-value" id="gps-coords" style="font-family: monospace; font-size: 0.75rem;">---</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Card -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-val" id="stat-total" style="color: var(--accent-primary);">0</span>
+                <span class="stat-label">Hadir</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-val" id="stat-tepat" style="color: var(--accent-success);">0</span>
+                <span class="stat-label">Tepat</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-val" id="stat-lambat" style="color: var(--accent-danger);">0</span>
+                <span class="stat-label">Telat</span>
+            </div>
+        </div>
+
+        <!-- Control and Simulation Card -->
+        <div class="control-card">
+            <!-- Simulation Toggle -->
+            <div class="toggle-switch-container">
+                <div class="toggle-label">
+                    <span class="toggle-title">Simulasi Masuk Area</span>
+                    <span class="toggle-desc">Uji coba auto-absen dari jarak jauh</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="sim-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-switch-container">
+                <div class="toggle-label">
+                    <span class="toggle-title">Pelacakan Aktif</span>
+                    <span class="toggle-desc">Gunakan GPS HP secara real-time</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="tracking-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <button class="btn btn-outline" id="btn-mock-late">
+                🕒 Simulasikan Absen Telat (> 08:30)
+            </button>
+        </div>
+
+        <!-- Logs History Card -->
+        <div class="logs-card">
+            <div class="logs-header">
+                <div class="logs-title">
+                    Riwayat Log Absen
+                    <span class="logs-count-badge" id="logs-count">0</span>
+                </div>
+                <button class="btn btn-outline" id="btn-clear" style="padding: 4px 8px; width: auto; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.3); color: var(--accent-danger);">
+                    Hapus
+                </button>
+            </div>
+
+            <div class="logs-list" id="logs-list">
+                <!-- Log items will go here dynamically -->
+                <div class="empty-logs" id="empty-logs">
+                    <div class="empty-icon">📂</div>
+                    <div>Belum ada log absensi tercatat.</div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="btn-export">
+                📥 Ekspor Riwayat ke TXT
+            </button>
+        </div>
+
+        <footer>
+            Aplikasi Absensi GPS Lokal &bull; <a href="#" class="footer-link" id="btn-instruction">Bantuan & HTTPS</a>
+        </footer>
+
+    </div>
+
+    <!-- Toast Notifications Area -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // Constants & Targets
+        const TARGET_LAT = -6.197941110620376;
+        const TARGET_LON = 106.75635310739834;
+        const RADIUS_TOLERANCE = 10; // meters
+
+        // App State
+        let logs = [];
+        let trackingActive = true;
+        let isSimulation = false;
+        let watchId = null;
+        let forceLateSimulation = false;
+
+        // DOM Elements
+        const liveTimeEl = document.getElementById('live-time');
+        const liveDateEl = document.getElementById('live-date');
+        const distanceDisplay = document.getElementById('distance-display');
+        const distanceLabel = document.getElementById('distance-label');
+        const statusBadge = document.getElementById('status-badge');
+        const gpsAccuracyEl = document.getElementById('gps-accuracy');
+        const gpsCoordsEl = document.getElementById('gps-coords');
+        const simToggle = document.getElementById('sim-toggle');
+        const trackingToggle = document.getElementById('tracking-toggle');
+        const btnMockLate = document.getElementById('btn-mock-late');
+        const logsList = document.getElementById('logs-list');
+        const emptyLogs = document.getElementById('empty-logs');
+        const logsCount = document.getElementById('logs-count');
+        const btnExport = document.getElementById('btn-export');
+        const btnClear = document.getElementById('btn-clear');
+        const radarDot = document.getElementById('radar-dot');
+        const radarSweep = document.getElementById('radar-sweep-element');
+        const btnInstruction = document.getElementById('btn-instruction');
+
+        // Stats elements
+        const statTotal = document.getElementById('stat-total');
+        const statTepat = document.getElementById('stat-tepat');
+        const statLambat = document.getElementById('stat-lambat');
+
+        // 1. Clock Implementation
+        function updateClock() {
+            const now = new Date();
+            let hours = String(now.getHours()).padStart(2, '0');
+            let minutes = String(now.getMinutes()).padStart(2, '0');
+            let seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            // If forcing late simulation for testing, we can display it on the mock button, but clock remains real
+            liveTimeEl.textContent = `${hours}:${minutes}:${seconds}`;
+
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            liveDateEl.textContent = now.toLocaleDateString('id-ID', options);
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // 2. Load and Render Logs
+        function loadLogs() {
+            const storedLogs = localStorage.getItem('absen_gps_logs');
+            if (storedLogs) {
+                try {
+                    logs = JSON.parse(storedLogs);
+                } catch(e) {
+                    logs = [];
+                }
+            } else {
+                logs = [];
+            }
+            renderLogs();
+            updateStats();
+        }
+
+        function saveLogs() {
+            localStorage.setItem('absen_gps_logs', JSON.stringify(logs));
+            updateStats();
+        }
+
+        function renderLogs() {
+            // Clear current list except empty message
+            const items = logsList.querySelectorAll('.log-item');
+            items.forEach(el => el.remove());
+
+            if (logs.length === 0) {
+                emptyLogs.style.display = 'flex';
+                logsCount.textContent = '0';
+                return;
+            }
+
+            emptyLogs.style.display = 'none';
+            logsCount.textContent = logs.length;
+
+            logs.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'log-item';
+                
+                const dateObj = new Date(log.timestamp);
+                const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
+                const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                const isTepat = log.status === 'TEPAT WAKTU';
+                const statusClass = isTepat ? 'tepat' : 'terlambat';
+                
+                item.innerHTML = `
+                    <div class="log-left">
+                        <div class="log-time">${timeStr}</div>
+                        <div class="log-date">${dateStr} (${log.method})</div>
+                    </div>
+                    <div class="log-right">
+                        <span class="log-status ${statusClass}">${log.status}</span>
+                        <span class="log-dist">Jarak: ${log.distance.toFixed(1)}m</span>
+                    </div>
+                `;
+                
+                // Prepend to show newest first
+                logsList.insertBefore(item, logsList.firstChild);
+            });
+        }
+
+        function updateStats() {
+            statTotal.textContent = logs.length;
+            const tepatCount = logs.filter(l => l.status === 'TEPAT WAKTU').length;
+            const lambatCount = logs.filter(l => l.status === 'TERLAMBAT').length;
+            statTepat.textContent = tepatCount;
+            statLambat.textContent = lambatCount;
+        }
+
+        // 3. Audio & Vibration Feedback
+        function triggerSuccessEffects() {
+            // Vibrate
+            if ('vibrate' in navigator) {
+                navigator.vibrate([150, 80, 150]);
+            }
+            
+            // Audio synthesizer (Sine Beep)
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // High pitch A5
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.05);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.25);
+            } catch (e) {
+                console.log("Audio feedback failed or blocked by autoplay policy: ", e);
+            }
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span>${message}</span>
+                <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 8px;">baru</span>
+            `;
+            container.appendChild(toast);
+            
+            // Remove after 4 seconds
+            setTimeout(() => {
+                toast.style.animation = 'none';
+                toast.offsetHeight; // trigger reflow
+                toast.style.transition = 'all 0.3s ease';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // 4. Distance and Position Logic
+        // Haversine formula to compute distance in meters between two coordinates
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Earth's radius in meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        // Check if there is already an attendance log for today
+        function hasCheckedInToday() {
+            const today = new Date();
+            const todayStr = today.toDateString(); // e.g. "Sun Jun 14 2026"
+            return logs.some(log => {
+                const logDate = new Date(log.timestamp);
+                return logDate.toDateString() === todayStr;
+            });
+        }
+
+        // Main Attendance Logging Handler
+        function triggerAttendance(distance) {
+            if (hasCheckedInToday()) {
+                // Already checked in today, do not log again.
+                return;
+            }
+
+            // Determine status based on time
+            const now = new Date();
+            let status = 'TEPAT WAKTU';
+            
+            if (forceLateSimulation) {
+                status = 'TERLAMBAT';
+            } else {
+                const hours = now.getHours();
+                const minutes = now.getMinutes();
+                if (hours > 8 || (hours === 8 && minutes > 30)) {
+                    status = 'TERLAMBAT';
+                }
+            }
+
+            const newLog = {
+                timestamp: now.toISOString(),
+                distance: distance,
+                status: status,
+                method: isSimulation ? 'SIMULASI' : 'GPS LOKAL'
+            };
+
+            logs.push(newLog);
+            saveLogs();
+            renderLogs();
+            triggerSuccessEffects();
+
+            showToast(`🎉 Absen Berhasil! (${status}) pada ${now.toLocaleTimeString('id-ID')} WIB`, 'success');
+        }
+
+        // Handle coordinate changes
+        function handleLocationUpdate(lat, lon, accuracy) {
+            gpsCoordsEl.textContent = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+            gpsAccuracyEl.textContent = `± ${accuracy.toFixed(1)} m`;
+
+            const distance = calculateDistance(lat, lon, TARGET_LAT, TARGET_LON);
+            
+            // Render Distance HUD
+            if (distance >= 1000) {
+                distanceDisplay.textContent = `${(distance/1000).toFixed(2)} km`;
+            } else {
+                distanceDisplay.textContent = `${distance.toFixed(1)} m`;
+            }
+
+            // Check if within tolerance (10 meters)
+            if (distance <= RADIUS_TOLERANCE) {
+                distanceDisplay.classList.add('in-range');
+                radarDot.classList.add('in-range');
+                radarSweep.classList.add('in-range');
+                distanceLabel.textContent = "Berada di Area Absen";
+
+                statusBadge.className = "status-badge in";
+                statusBadge.textContent = "DI DALAM AREA";
+
+                // Log attendance automatically
+                if (!hasCheckedInToday()) {
+                    triggerAttendance(distance);
+                } else {
+                    // Update state label to indicate already checked in
+                    distanceLabel.textContent = "Sudah Absen Hari Ini";
+                }
+            } else {
+                distanceDisplay.classList.remove('in-range');
+                radarDot.classList.remove('in-range');
+                radarSweep.classList.remove('in-range');
+                distanceLabel.textContent = "Di luar radius absen";
+
+                statusBadge.className = "status-badge out";
+                statusBadge.textContent = "DI LUAR AREA";
+            }
+        }
+
+        // GPS Tracker Watcher with double-insurance polling fallback
+        let fallbackIntervalId = null;
+
+        function startTracking() {
+            if (!navigator.geolocation) {
+                showToast("Browser Anda tidak mendukung GPS / Geolocation", "danger");
+                statusBadge.textContent = "GPS TIDAK DIDUKUNG";
+                return;
+            }
+
+            statusBadge.className = "status-badge out";
+            statusBadge.textContent = "MENGHUBUNGKAN GPS...";
+
+            const geoOptions = {
+                enableHighAccuracy: true,
+                maximumAge: 0, // Disable caching to ensure fresh real-time coordinates
+                timeout: 8000
+            };
+
+            // 1. Primary Watcher: Updates automatically when device moves
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    if (isSimulation) return;
+                    
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    handleLocationUpdate(lat, lon, accuracy);
+                },
+                (error) => {
+                    if (isSimulation) return;
+                    console.error("GPS Watch Error: ", error);
+                    handleGPSError(error);
+                },
+                geoOptions
+            );
+
+            // 2. Secondary Poller (Double Insurance): Force updates every 3 seconds 
+            // to bypass Android sleep/doze modes on stationary devices
+            fallbackIntervalId = setInterval(() => {
+                if (isSimulation || !trackingActive) return;
+                
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        const accuracy = position.coords.accuracy;
+                        
+                        handleLocationUpdate(lat, lon, accuracy);
+                    },
+                    (error) => {
+                        console.warn("GPS Fallback Warning: ", error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
+            }, 3000);
+        }
+
+        function handleGPSError(error) {
+            let errMsg = "Kesalahan GPS tidak diketahui.";
+            if (error.code === error.PERMISSION_DENIED) {
+                errMsg = "Izin lokasi ditolak. Aktifkan izin GPS di browser Anda.";
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+                errMsg = "Sensor GPS tidak aktif atau tidak dapat menemukan sinyal.";
+            } else if (error.code === error.TIMEOUT) {
+                errMsg = "Waktu pelacakan GPS habis.";
+            }
+            showToast(errMsg, "danger");
+            statusBadge.className = "status-badge out";
+            statusBadge.textContent = "GPS ERROR";
+        }
+
+        function stopTracking() {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            if (fallbackIntervalId !== null) {
+                clearInterval(fallbackIntervalId);
+                fallbackIntervalId = null;
+            }
+            statusBadge.className = "status-badge out";
+            statusBadge.textContent = "PELACAKAN MATI";
+        }
+
+        // 5. Simulation Mode handler
+        let simInterval = null;
+        function toggleSimulation(enable) {
+            isSimulation = enable;
+            if (enable) {
+                showToast("Mode simulasi diaktifkan! Menggeser posisi ke dekat koordinat absen...", "warning");
+                
+                // Stop real tracking temporarily
+                stopTracking();
+
+                // Mock interval to simulate coordinates close to target
+                simInterval = setInterval(() => {
+                    // Inject coordinates within 2 - 8 meters of target
+                    const r = (Math.random() * 6 + 2); // 2 to 8 meters
+                    // Convert meters to delta lat/lon (rough approximation)
+                    const deltaLat = (Math.random() - 0.5) * 0.00003;
+                    const deltaLon = (Math.random() - 0.5) * 0.00003;
+                    
+                    const mockLat = TARGET_LAT + deltaLat;
+                    const mockLon = TARGET_LON + deltaLon;
+                    const mockAccuracy = 3.2; // excellent accuracy
+
+                    handleLocationUpdate(mockLat, mockLon, mockAccuracy);
+                }, 2000);
+
+            } else {
+                clearInterval(simInterval);
+                simInterval = null;
+                showToast("Mode simulasi dimatikan. Mengembalikan ke GPS asli.", "info");
+                
+                // Restart real tracking if enabled
+                if (trackingActive) {
+                    startTracking();
+                } else {
+                    stopTracking();
+                }
+            }
+        }
+
+        // 6. Export Logs to TXT file
+        function exportToTXT() {
+            if (logs.length === 0) {
+                showToast("Tidak ada data log untuk diekspor", "warning");
+                return;
+            }
+
+            const exportDate = new Date();
+            const headerStr = 
+`==================================================
+        RIWAYAT ABSENSI OTOMATIS GPS (LOKAL)
+==================================================
+Dibuat Pada : ${exportDate.toLocaleDateString('id-ID')} ${exportDate.toLocaleTimeString('id-ID')} WIB
+Target Poin : ${TARGET_LAT}, ${TARGET_LON}
+Radius Batas: 10 meter
+Batas Waktu : 08:30 WIB
+==================================================
+
+Catatan Log Absen:
+`;
+
+            let bodyStr = '';
+            logs.forEach((log, index) => {
+                const dateObj = new Date(log.timestamp);
+                const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
+                const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                
+                bodyStr += `[No. ${index + 1}]
+  Tanggal    : ${dateStr}
+  Jam Masuk  : ${timeStr}
+  Jarak GPS  : ${log.distance.toFixed(2)} meter
+  Status     : ${log.status}
+  Metode Log : ${log.method}
+--------------------------------------------------\n`;
+            });
+
+            const footerStr = `==================================================
+TOTAL KEHADIRAN: ${logs.length}
+TEPAT WAKTU    : ${logs.filter(l => l.status === 'TEPAT WAKTU').length}
+TERLAMBAT      : ${logs.filter(l => l.status === 'TERLAMBAT').length}
+==================================================\n`;
+
+            const fullText = headerStr + bodyStr + footerStr;
+
+            // Generate Blob and download
+            const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Format filename: log_absen_YYYY-MM-DD.txt
+            const year = exportDate.getFullYear();
+            const month = String(exportDate.getMonth() + 1).padStart(2, '0');
+            const day = String(exportDate.getDate()).padStart(2, '0');
+            a.download = `log_absen_${year}-${month}-${day}.txt`;
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+
+            showToast("📂 File log_absen.txt berhasil diunduh ke perangkat Anda!", "success");
+        }
+
+        // 7. Event Listeners Setup
+        simToggle.addEventListener('change', (e) => {
+            toggleSimulation(e.target.checked);
+        });
+
+        trackingToggle.addEventListener('change', (e) => {
+            trackingActive = e.target.checked;
+            if (trackingActive) {
+                // Turn off simulation if active
+                if (isSimulation) {
+                    simToggle.checked = false;
+                    toggleSimulation(false);
+                }
+                startTracking();
+                showToast("Pelacakan GPS Aktif diaktifkan.", "info");
+            } else {
+                stopTracking();
+                showToast("Pelacakan GPS Aktif dimatikan.", "warning");
+            }
+        });
+
+        btnMockLate.addEventListener('click', () => {
+            forceLateSimulation = !forceLateSimulation;
+            if (forceLateSimulation) {
+                btnMockLate.innerHTML = "⏰ Matikan Simulasi Jam Telat (Gunakan Jam Asli)";
+                btnMockLate.style.borderColor = "rgba(239, 68, 68, 0.4)";
+                btnMockLate.style.background = "rgba(239, 68, 68, 0.05)";
+                showToast("Simulasi Keterlambatan AKTIF. Log masuk berikutnya akan ditandai TERLAMBAT.", "warning");
+            } else {
+                btnMockLate.innerHTML = "🕒 Simulasikan Absen Telat (> 08:30)";
+                btnMockLate.style.borderColor = "rgba(255, 255, 255, 0.15)";
+                btnMockLate.style.background = "transparent";
+                showToast("Simulasi Keterlambatan NONAKTIF. Waktu log akan mengikuti jam perangkat asli.", "info");
+            }
+        });
+
+        btnExport.addEventListener('click', exportToTXT);
+
+        btnClear.addEventListener('click', () => {
+            if (confirm("Apakah Anda yakin ingin menghapus semua riwayat absen lokal?")) {
+                logs = [];
+                saveLogs();
+                renderLogs();
+                showToast("Seluruh riwayat absensi lokal telah dihapus.", "danger");
+            }
+        });
+
+        btnInstruction.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert(
+                "PANDUAN PENGGUNAAN:\n\n" +
+                "1. Hubungkan HP ke HTTPS (seperti GitHub Pages) agar GPS dapat berfungsi.\n" +
+                "2. Saat berada dalam radius 10 meter dari titik target (-6.19794, 106.75635), HP akan bergetar dan otomatis mencatat kehadiran.\n" +
+                "3. Absen dilakukan sekali sehari. Tombol Simulasi dapat digunakan untuk menguji fungsionalitas auto-absen dari mana saja.\n" +
+                "4. Klik 'Ekspor Riwayat ke TXT' untuk mengunduh log absensi sebagai file teks (.txt)."
+            );
+        });
+
+        // Initialize App
+        loadLogs();
+        
+        // Check secure context to warn user immediately on insecure local environments
+        if (!window.isSecureContext) {
+            document.getElementById('secure-context-warning').style.display = 'block';
+            showToast("Koneksi tidak aman (Non-HTTPS). Sensor GPS asli akan diblokir oleh browser.", "warning");
+        }
+
+        if (trackingActive) {
+            startTracking();
+        }
+    </script>
+</body>
+</html>
